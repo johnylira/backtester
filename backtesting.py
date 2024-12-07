@@ -322,7 +322,10 @@ class Simulador:
 
         oportunidade = volatilidade + pct_change
 
-        plt.plot(oportunidade.cumsum())
+        # Adiciona cumsum para cada coluna do DataFrame no gráfico
+        for column in oportunidade.columns:
+            plt.plot(oportunidade[column].cumsum(), label=column)
+        plt.legend()
         plt.show()
         return oportunidade
     
