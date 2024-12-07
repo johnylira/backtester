@@ -313,7 +313,7 @@ class Simulador:
         close = df['Close']
         pct_change = close.pct_change().dropna()
         minimo = df['Low']
-        volatilidade = (close / minimo - 1).iloc[1:]
+        volatilidade = (close.shift(1) / minimo - 1).iloc[1:]
 
         # Garante que os índices estejam alinhados entre `volatilidade` e `pct_change`
         aligned_indices = pct_change.index.intersection(volatilidade.index)
