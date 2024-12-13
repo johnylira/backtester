@@ -305,7 +305,7 @@ class Simulador:
         print('arquivo', f'simulacao_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx', 'salvo com sucesso')
         self.getRecomendacoes()
 
-    def getOportunidade(self):
+    def getOportunidade(self, plotar_grafico = False):
         # Faz uma cópia do DataFrame para evitar alterações não intencionais no original
         df = self.df.copy()
 
@@ -322,20 +322,21 @@ class Simulador:
 
         oportunidade = volatilidade + pct_change
 
-        # Adiciona cumsum para cada coluna do DataFrame no gráfico
-        for column in oportunidade.columns:
-            plt.plot(oportunidade[column].cumsum(), label=column)
-        plt.legend()
-        plt.show()
-        return oportunidade
+        if plotar_grafico == True:
+            # Adiciona cumsum para cada coluna do DataFrame no gráfico
+            for column in oportunidade.columns:
+                plt.plot(oportunidade[column].cumsum(), label=column)
+            plt.legend()
+            plt.show()
+            return oportunidade
     
-    def getDescritivaMarkov(self, n_classes = 2) -> None:
+    def getDescritivaMarkov(self, n_classes = 2, periodo_variacao = 1,plotar_grafico = False) -> None:
         print('===============     Simulador.getDescritivaMarkov()     =================')
 
 
         df = self.df.copy()
         close = df['Close']
-        pct_change = close.pct_change().dropna().copy()
+        pct_change = close.pct_change(periodo_variacao).dropna().copy()
         print(pct_change)
         # Criar as colunas SS, SN, NN, NS para cada ativo
         def classificacao(row, ativo):
@@ -360,9 +361,9 @@ class Simulador:
 
         for col in pct_change.columns:
             # Passo 1: Criar as colunas de retornos anteriores t-1 e t-2 para cada ativo
-            pct_change[f'{col}_t-1'] = pct_change[col].shift(1)
+            pct_change[f'{col}_t-1'] = pct_change[col].shift(periodo_variacao)
             if n_classes == 3:
-                pct_change[f'{col}_t-2'] = pct_change[col].shift(2)
+                pct_change[f'{col}_t-2'] = pct_change[col].shift(2*periodo_variacao)
 
             # Passo 2: Transformar os retornos em binários (0 = desceu, 1 = subiu)
             pct_change[f'{col}_bin'] = (pct_change[col] > 0).astype(int)
@@ -374,7 +375,7 @@ class Simulador:
             pct_change[f'{col}_classificacao'] = pct_change.apply(lambda row: classificacao(row, col), axis=1)
 
             # Passo 4: Calcular os retornos futuros t+1
-            pct_change[f'{col}_retorno_t+1'] = pct_change[col].shift(-1)
+            pct_change[f'{col}_retorno_t+1'] = pct_change[col].shift(-periodo_variacao)
             pct_change[f'{col}_resultado_t+1'] = (pct_change[f'{col}_retorno_t+1'] > 0).astype(int)
 
             # Passo 5: Calcular as somas dos retornos por classificação
@@ -394,12 +395,13 @@ class Simulador:
             [[f'{ativo}_retorno_esperado' for ativo in self.sigla_ativo]].idxmax(axis=1)
             
         # Passo 10: Cria coluna com os respectivos retornos da estrategia
-        pct_change['retorno_estrategia'] = pct_change.apply(lambda row: row[row['retorno_esperado_escolhido'].split('_')[0]+'_retorno_t+1'], axis=1).cumsum()
+        pct_change['retorno_estrategia'] = (pct_change.apply(lambda row: row[row['retorno_esperado_escolhido'].split('_')[0]+'_retorno_t+1'], axis=1)/periodo_variacao).cumsum()
 
         # Gerar um DataFrame final com as somas dos retornos por classificação para todos os ativos
         retornos, probabilidades, esperancas = pd.DataFrame(retornos), pd.DataFrame(probabilidades), pd.DataFrame(esperancas)
-        plt.plot(pct_change['retorno_estrategia'])
-        plt.show()
+        if plotar_grafico == True:
+            plt.plot(pct_change['retorno_estrategia'])
+            plt.show()
         return pct_change ,retornos, probabilidades, esperancas#.reset_index()
 
 
@@ -459,8 +461,8 @@ if __name__ == "__main__":
     # sim.getRetornoMedioHorario()
 
     
-    # print(sim.getDescritivaMarkov(n_classes=3))
-    print(sim.getOportunidade())
+    print(sim.getDescritivaMarkov(n_classes=3, periodo_variacao=1))
+    # print(sim.getOportunidade())
 
     
     
