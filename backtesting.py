@@ -468,7 +468,7 @@ if __name__ == "__main__":
     # sim.getRetornoMedioHorario()
 
     
-    sim.getDescritivaMarkov(n_classes=3, periodo_variacao=2, plotar_grafico=True)
+    sim.getDescritivaMarkov(n_classes=3, periodo_variacao=1, plotar_grafico=True)
     # print(sim.getOportunidade())
 
     
