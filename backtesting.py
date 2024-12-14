@@ -402,6 +402,13 @@ class Simulador:
         if plotar_grafico == True:
             plt.plot(pct_change['retorno_estrategia'])
             plt.show()
+        print('===============     Simulador.getResultados()     =================')
+        print('Retornos esperados: ')
+        x = pct_change[[f'{ativo}_retorno_esperado' for ativo in self.sigla_ativo]].copy()
+        x.columns = [col.replace('_retorno_esperado', '') for col in x.columns]
+        print(x)
+        print('===========================================================')
+
         return pct_change ,retornos, probabilidades, esperancas#.reset_index()
 
 
@@ -412,7 +419,7 @@ if __name__ == "__main__":
 
         'sigla_ativo': ['HASH11.SA', 'IVVB11.SA', 'DIVO11.SA', 'PETR4.SA'], # 'BTC-USD', #HASH11.SA,
         'data_inicial': '2023-01-01',
-        'data_final': '2024-11-01',
+        'data_final': '2024-12-14',#'2024-11-01',
         'intervalo': '1d',
         'proporcao_teste': 0.25,
         'preditores': [
@@ -461,7 +468,7 @@ if __name__ == "__main__":
     # sim.getRetornoMedioHorario()
 
     
-    print(sim.getDescritivaMarkov(n_classes=3, periodo_variacao=1))
+    sim.getDescritivaMarkov(n_classes=3, periodo_variacao=2, plotar_grafico=True)
     # print(sim.getOportunidade())
 
     
