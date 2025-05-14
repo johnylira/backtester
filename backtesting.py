@@ -417,9 +417,48 @@ if __name__ == "__main__":
 
         ######## PARÂMETROS DO BACKTEST DE ÚNICO SPLIT E DE SIMULAÇÃO INTERATIVA ############
 
-        'sigla_ativo': ['HASH11.SA', 'IVVB11.SA', 'DIVO11.SA', 'PETR4.SA'], # 'BTC-USD', #HASH11.SA,
+    'sigla_ativo':              #[   "PETR4.SA",  # Petrobras PN
+    #                                 "VALE3.SA",  # Vale ON
+    #                                 "ITUB4.SA",  # Itaú Unibanco PN
+    #                                 "BBDC4.SA",  # Bradesco PN
+    #                                 "BBAS3.SA",  # Banco do Brasil ON
+    #                                 "ABEV3.SA",  # Ambev ON
+    #                                 "WEGE3.SA",  # WEG ON
+    #                                 "PETR3.SA",  # Petrobras ON
+    #                                 "ITSA4.SA",  # Itaúsa PN
+    #                                 "B3SA3.SA",  # B3 ON
+    #                                 "HASH11.SA", # Hashimatsu PN
+    #                                 "IVVB11.SA", # IVV Brasil Units
+                                    # "CPLE6.SA",  # Copel PN
+                                    # "EGIE3.SA",  # Engie Brasil ON
+                                    # "TAEE11.SA", # Taesa Units
+                                    # "TRPL4.SA",  # Transmissão Paulista PN
+                                    # "CSMG3.SA",  # Copasa ON
+                                    # "ELET6.SA",  # Eletrobras PN
+                                    # "SANB11.SA", # Santander Brasil Units
+                                    # "BBSE3.SA",  # BB Seguridade ON
+                                    # "ENBR3.SA",  # Energias do Brasil ON
+                                    # "SAPR11.SA", # Sanepar Units
+                                    # "FLRY3.SA",  # Fleury ON
+                                    # "MRFG3.SA",  # Marfrig ON
+                                    # "BRAP4.SA",  # Bradespar PN
+                                    # "VIVT3.SA",  # Telefônica Brasil ON
+                                    # "KLBN11.SA", # Klabin Units
+                                    # "GRND3.SA",  # Grendene ON
+                                    # "LEVE3.SA",  # Metal Leve ON
+                                    # "PSSA3.SA",  # Porto Seguro ON
+                                    # "ALUP11.SA", # Alupar Units
+                                    # "HYPE3.SA",  # Hypera Pharma ON
+                                    # "RANI3.SA",  # Irani Papel ON
+                                    # "CYRE3.SA",  # Cyrela ON
+                                    # "MULT3.SA",  # Multiplan ON
+                                    # "BRML3.SA",  # BR Malls ON
+                                    # "CAML3.SA",  # Camil ON
+                                    # "TOTS3.SA",  # Totvs ON
+                                # ], 
+                                ['HASH11.SA', 'IVVB11.SA', 'DIVO11.SA'], # 'BTC-USD', #HASH11.SA,
         'data_inicial': '2023-01-01',
-        'data_final': '2024-12-14',#'2024-11-01',
+        'data_final': '2024-12-19',#'2024-11-01',
         'intervalo': '1d',
         'proporcao_teste': 0.25,
         'preditores': [
