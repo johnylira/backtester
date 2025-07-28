@@ -41,6 +41,9 @@ class Simulador:
     def getPrecos(self) -> None:
         print('===============     Simulador.getPrecos()     =================')
         self.df = yf.download(self.sigla_ativo, start=self.data_inicial, end=self.data_final, interval=self.intervalo)
+        if self.df.empty:
+            raise ValueError(f"Não foram encontrados dados para o ativo {self.sigla_ativo} no intervalo especificado.")
+        print(self.df.head(1).T)
         self.df['data'] = self.df.index
         self.df = self.df.copy()  # Garante que self.df é uma cópia independente
         print('data inicial:', self.df.index[0], 'data final:', self.df.index[-1], 'linhas na base:', len(self.df))
@@ -456,9 +459,9 @@ if __name__ == "__main__":
                                     # "CAML3.SA",  # Camil ON
                                     # "TOTS3.SA",  # Totvs ON
                                 # ], 
-                                ['HASH11.SA', 'IVVB11.SA', 'DIVO11.SA'], # 'BTC-USD', #HASH11.SA,
-        'data_inicial': '2023-01-01',
-        'data_final': '2024-12-19',#'2024-11-01',
+                                ['HASH11.SA'],#, 'IVVB11.SA', 'DIVO11.SA'], # 'BTC-USD', #HASH11.SA,
+        'data_inicial': '2024-06-01',
+        'data_final': '2024-05-01',#'2024-11-01',
         'intervalo': '1d',
         'proporcao_teste': 0.25,
         'preditores': [
