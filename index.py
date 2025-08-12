@@ -66,6 +66,29 @@ class BacktestStopDinamicoTodos:
                 (grupo['stop'] - 0.000576 - 0.001) * 0.85,
                 grupo['var']
             )
+            
+            retornos = grupo['retorno_estrategia'].dropna()
+
+            # Probabilidade de subir
+            p_up = (retornos > 0).mean()
+
+            # Probabilidade de cair
+            p_down = 1 - p_up
+
+            # Média dos retornos positivos
+            mean_up = retornos[retornos > 0].mean() if p_up > 0 else 0
+
+            # Média dos retornos negativos
+            mean_down = retornos[retornos < 0].mean() if p_down > 0 else 0
+
+            # Valor esperado
+            valor_esperado = (mean_up * p_up) + (mean_down * p_down)
+
+            ultimas_variacoes.append({
+                'simbolo': simbolo,
+                'valor_esperado': valor_esperado
+            })
+
 
             grupo['acumulado_estrategia'] = grupo['retorno_estrategia'].cumsum()
             grupo['acumulado_var'] = grupo['var'].cumsum()
@@ -80,7 +103,8 @@ class BacktestStopDinamicoTodos:
             return None
 
         df_variacoes = pd.DataFrame(ultimas_variacoes)
-        melhor_idx = df_variacoes['ultima_var'].idxmax()
+        print(f"\n{df_variacoes}")
+        melhor_idx = df_variacoes['valor_esperado'].idxmax()
 
         melhor_ativo = df_variacoes.loc[melhor_idx]
         print(f"Melhor ativo do período: {melhor_ativo['simbolo']} com variação {melhor_ativo['ultima_var']:.6f}")
@@ -217,7 +241,11 @@ class BacktestStopDinamicoTodos:
         # Por fim, acumulado da proxima_var somado ao acumulado do dia anterior cumulativamente (cumsum por ativo)
         # Mas o enunciado pede acumulado = proxima_var + acumulado do dia anterior (não cumulativo)
 
-        resumo['acumulado_proxima_var'] = resumo['proxima_var'] + resumo['acumulado_proxima_var'].cumsum()
+        # resumo['acumulado_proxima_var'] = resumo['proxima_var'] + resumo['acumulado_proxima_var'].cumsum()
+        resumo['acumulado_proxima_var'] = (
+            resumo.groupby('ativo_com_maior_variacao')['proxima_var']
+                .cumsum() + resumo['acumulado_dia_anterior']
+        )
         
         # Selecionar colunas finais
         resumo = resumo[['datahora_fechamento', 'maior_valor', 'ativo_com_maior_variacao', 'proxima_var', 'acumulado_proxima_var']]
