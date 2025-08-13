@@ -6,17 +6,337 @@ import matplotlib.pyplot as plt
 
 # Baixar os dados
 url = "https://n8n.coinverge.com.br/webhook/precos"
-response = requests.get(url)
-data = response.json()
-
+# response = requests.get(url)
+data = [
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.25510000",
+        "preco_maximo":"0.26730000",
+        "preco_minimo":"0.24930000",
+        "preco_abertura":"0.26600000",
+        "datahora_fechamento":"2025-08-06T14:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26640000",
+        "preco_maximo":"0.27190000",
+        "preco_minimo":"0.24930000",
+        "preco_abertura":"0.25610000",
+        "datahora_fechamento":"2025-08-06T22:00:00.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26830000",
+        "preco_maximo":"0.27190000",
+        "preco_minimo":"0.24930000",
+        "preco_abertura":"0.25770000",
+        "datahora_fechamento":"2025-08-07T02:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26500000",
+        "preco_maximo":"0.27190000",
+        "preco_minimo":"0.24930000",
+        "preco_abertura":"0.25210000",
+        "datahora_fechamento":"2025-08-07T06:00:02.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26590000",
+        "preco_maximo":"0.27190000",
+        "preco_minimo":"0.25270000",
+        "preco_abertura":"0.25580000",
+        "datahora_fechamento":"2025-08-07T10:00:02.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.29400000",
+        "preco_maximo":"0.29930000",
+        "preco_minimo":"0.28220000",
+        "preco_abertura":"0.28410000",
+        "datahora_fechamento":"2025-08-10T02:00:01.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.29190000",
+        "preco_maximo":"0.29930000",
+        "preco_minimo":"0.28250000",
+        "preco_abertura":"0.28360000",
+        "datahora_fechamento":"2025-08-10T06:00:03.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26040000",
+        "preco_maximo":"0.26170000",
+        "preco_minimo":"0.24930000",
+        "preco_abertura":"0.25820000",
+        "datahora_fechamento":"2025-08-06T18:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27380000",
+        "preco_maximo":"0.27400000",
+        "preco_minimo":"0.25270000",
+        "preco_abertura":"0.25500000",
+        "datahora_fechamento":"2025-08-07T14:00:03.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27170000",
+        "preco_maximo":"0.27620000",
+        "preco_minimo":"0.25900000",
+        "preco_abertura":"0.26050000",
+        "datahora_fechamento":"2025-08-07T18:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26880000",
+        "preco_maximo":"0.27620000",
+        "preco_minimo":"0.26340000",
+        "preco_abertura":"0.26640000",
+        "datahora_fechamento":"2025-08-07T22:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27610000",
+        "preco_maximo":"0.27640000",
+        "preco_minimo":"0.26340000",
+        "preco_abertura":"0.26830000",
+        "datahora_fechamento":"2025-08-08T02:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28390000",
+        "preco_maximo":"0.28930000",
+        "preco_minimo":"0.26550000",
+        "preco_abertura":"0.26590000",
+        "datahora_fechamento":"2025-08-08T10:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27980000",
+        "preco_maximo":"0.28930000",
+        "preco_minimo":"0.26550000",
+        "preco_abertura":"0.27370000",
+        "datahora_fechamento":"2025-08-08T14:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28230000",
+        "preco_maximo":"0.28930000",
+        "preco_minimo":"0.26550000",
+        "preco_abertura":"0.27160000",
+        "datahora_fechamento":"2025-08-08T18:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28530000",
+        "preco_maximo":"0.28930000",
+        "preco_minimo":"0.26850000",
+        "preco_abertura":"0.26890000",
+        "datahora_fechamento":"2025-08-08T22:00:03.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28420000",
+        "preco_maximo":"0.28930000",
+        "preco_minimo":"0.27090000",
+        "preco_abertura":"0.27610000",
+        "datahora_fechamento":"2025-08-09T02:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28870000",
+        "preco_maximo":"0.29930000",
+        "preco_minimo":"0.28690000",
+        "preco_abertura":"0.29040000",
+        "datahora_fechamento":"2025-08-10T10:00:03.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28040000",
+        "preco_maximo":"0.29930000",
+        "preco_minimo":"0.27940000",
+        "preco_abertura":"0.29460000",
+        "datahora_fechamento":"2025-08-10T14:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28510000",
+        "preco_maximo":"0.29930000",
+        "preco_minimo":"0.27940000",
+        "preco_abertura":"0.29250000",
+        "datahora_fechamento":"2025-08-10T18:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28150000",
+        "preco_maximo":"0.29930000",
+        "preco_minimo":"0.27940000",
+        "preco_abertura":"0.29340000",
+        "datahora_fechamento":"2025-08-10T22:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27840000",
+        "preco_maximo":"0.28980000",
+        "preco_minimo":"0.27780000",
+        "preco_abertura":"0.28860000",
+        "datahora_fechamento":"2025-08-11T10:00:01.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28370000",
+        "preco_maximo":"0.28920000",
+        "preco_minimo":"0.27700000",
+        "preco_abertura":"0.28060000",
+        "datahora_fechamento":"2025-08-09T06:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.29040000",
+        "preco_maximo":"0.29280000",
+        "preco_minimo":"0.27700000",
+        "preco_abertura":"0.28390000",
+        "datahora_fechamento":"2025-08-09T10:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.29470000",
+        "preco_maximo":"0.29690000",
+        "preco_minimo":"0.27700000",
+        "preco_abertura":"0.27980000",
+        "datahora_fechamento":"2025-08-09T14:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.29250000",
+        "preco_maximo":"0.29690000",
+        "preco_minimo":"0.27700000",
+        "preco_abertura":"0.28230000",
+        "datahora_fechamento":"2025-08-09T18:00:02.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.29340000",
+        "preco_maximo":"0.29690000",
+        "preco_minimo":"0.28220000",
+        "preco_abertura":"0.28540000",
+        "datahora_fechamento":"2025-08-09T22:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28190000",
+        "preco_maximo":"0.29760000",
+        "preco_minimo":"0.27780000",
+        "preco_abertura":"0.29390000",
+        "datahora_fechamento":"2025-08-11T02:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.28360000",
+        "preco_maximo":"0.29660000",
+        "preco_minimo":"0.27780000",
+        "preco_abertura":"0.29190000",
+        "datahora_fechamento":"2025-08-11T06:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27080000",
+        "preco_maximo":"0.28720000",
+        "preco_minimo":"0.27040000",
+        "preco_abertura":"0.28030000",
+        "datahora_fechamento":"2025-08-11T14:00:02.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26660000",
+        "preco_maximo":"0.28720000",
+        "preco_minimo":"0.26340000",
+        "preco_abertura":"0.28520000",
+        "datahora_fechamento":"2025-08-11T18:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26590000",
+        "preco_maximo":"0.28450000",
+        "preco_minimo":"0.26340000",
+        "preco_abertura":"0.28150000",
+        "datahora_fechamento":"2025-08-11T22:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.25930000",
+        "preco_maximo":"0.28450000",
+        "preco_minimo":"0.25680000",
+        "preco_abertura":"0.28210000",
+        "datahora_fechamento":"2025-08-12T02:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26350000",
+        "preco_maximo":"0.28360000",
+        "preco_minimo":"0.25680000",
+        "preco_abertura":"0.28360000",
+        "datahora_fechamento":"2025-08-12T06:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26320000",
+        "preco_maximo":"0.27850000",
+        "preco_minimo":"0.25680000",
+        "preco_abertura":"0.27850000",
+        "datahora_fechamento":"2025-08-12T10:00:04.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26290000",
+        "preco_maximo":"0.27090000",
+        "preco_minimo":"0.25680000",
+        "preco_abertura":"0.27090000",
+        "datahora_fechamento":"2025-08-12T14:00:02.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.26720000",
+        "preco_maximo":"0.27060000",
+        "preco_minimo":"0.25680000",
+        "preco_abertura":"0.26660000",
+        "datahora_fechamento":"2025-08-12T18:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27370000",
+        "preco_maximo":"0.27560000",
+        "preco_minimo":"0.25860000",
+        "preco_abertura":"0.25920000",
+        "datahora_fechamento":"2025-08-13T02:00:05.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27360000",
+        "preco_maximo":"0.27560000",
+        "preco_minimo":"0.26020000",
+        "preco_abertura":"0.26360000",
+        "datahora_fechamento":"2025-08-13T06:00:06.000"
+    },
+    {
+        "simbolo":"1INCHUSDT",
+        "ultimo_preco":"0.27870000",
+        "preco_maximo":"0.27940000",
+        "preco_minimo":"0.26020000",
+        "preco_abertura":"0.26290000",
+        "datahora_fechamento":"2025-08-13T14:00:06.000"
+    }
+]
 
 # DataFrame
 df = pd.DataFrame(data)
-print("DataFrame criado com as seguintes colunas:")
-for col in df.columns:
-    print(f"- {col}")
-print(f"Shape do DataFrame: {df.shape}")
-
+print(df)
+# print("DataFrame criado com as seguintes colunas:")
+# for col in df.columns:
+#     print(f"- {col}")
+# print(f"Shape do DataFrame: {df.shape}")
 
 # Conversão numérica
 for col in df.columns:
@@ -67,7 +387,7 @@ class BacktestStopDinamicoTodos:
                 grupo['var']
             )
             
-            retornos = grupo['retorno_estrategia'].dropna()
+            retornos = grupo['var'].dropna()
 
             # Probabilidade de subir
             p_up = (retornos > 0).mean()
@@ -277,7 +597,6 @@ print("\nResultado final:")
 if melhor_do_periodo is not None:
     simbolo_escolhido = melhor_do_periodo['simbolo']
     variacao_escolhida = melhor_do_periodo['ultima_var']
-    # print(f"Ativo selecionado: {simbolo_escolhido} - Variação: {variacao_escolhida:.6f}")
 
     backtest.salvar_dados_por_ativo('detalhes_ativos.xlsx')
 
@@ -288,15 +607,17 @@ if melhor_do_periodo is not None:
 
     print(f"\nPrimeiro ativo recomendado: {primeiro_ativo}")
     print("\nTabela detalhada das recomendações e variações (primeiras 10 linhas):")
-    # print(tabela_info.head(10).to_string())
 
-    # Plot comparativo (opcional)
+    # Obter df_ativo para o ativo escolhido
     df_ativo = backtest.resultados[simbolo_escolhido]
+
+
     plt.figure(figsize=(14, 7))
     plt.plot(df_ativo['datahora_fechamento'], df_ativo['acumulado_var'], label='Acumulado Variação Normal', linewidth=2)
     plt.plot(df_ativo['datahora_fechamento'], df_ativo['acumulado_estrategia'], label='Acumulado Estratégia Stop', linewidth=2)
     plt.plot(tabela_info['datahora_fechamento'], tabela_info['retorno_recomendado'].cumsum(),
              label='Multiativo (acumulado retorno recomendado)', linewidth=2, linestyle='--')
+
     plt.title(f'Comparativo Estratégias - Ativo: {simbolo_escolhido} vs Estratégia Multiativo')
     plt.xlabel('Data/Hora de Fechamento')
     plt.ylabel('Variação Acumulada')
