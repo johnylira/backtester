@@ -18,17 +18,17 @@ PARAMS = {
     "api_url": "https://n8n.coinverge.com.br/webhook/precos",
 
     # Seleção e sinais
-    "k": 10,                     # top-k
-    "suporte_min": 30,           # ocorrências mínimas do cenário
-    "cap_ativo": 0.10,           # teto de peso por ativo (10%)
-    "kelly_frac": 0.5,           # half-Kelly
-    "slippage_bps": 10,          # 10 bps por trade => 20 bps roundtrip
+    "k": 5,                       # top-k: Quantos ativos entram na carteira no final.
+    "suporte_min": 1,             # ocorrências mínimas do cenário (use inteiro >=1). Aumente elegibilidade reduzindo este valor.
+    "cap_ativo": 0.10,            # teto de peso por ativo (10%)
+    "kelly_frac": 0.5,            # half-Kelly
+    "slippage_bps": 10,           # 10 bps por trade => 20 bps roundtrip: Custo por trade em basis points (bps). 1 bps = 0,01%.
 
     # Risco
-    "vol_alvo": 0.15,            # vol anualizada alvo do portfólio
-    "rolling_cov_days": 60,      # janela para estimar covariância ex-ante
-    "dd_cut": 0.10,              # drawdown gatilho (10%)
-    "initial_equity": 1_000_000, # patrimônio inicial p/ curva de DD
+    "vol_alvo": 0.15,             # vol anualizada alvo do portfólio
+    "rolling_cov_days": 60,       # janela para estimar covariância ex-ante
+    "dd_cut": 0.10,               # drawdown gatilho (10%)
+    "initial_equity": 1_000_000,  # patrimônio inicial p/ curva de DD
 
     # Pastas/arquivos
     "dir_data": "data",
@@ -62,7 +62,6 @@ def safe_request_json(url: str, timeout: int = 20, retries: int = 3, backoff: in
 def ensure_datetime_no_tz(df: pd.DataFrame, col: str) -> pd.DataFrame:
     if col in df.columns:
         df[col] = pd.to_datetime(df[col], errors='coerce')
-        # Se vier timezone-aware, remover
         if getattr(df[col].dt, 'tz', None) is not None:
             df[col] = df[col].dt.tz_localize(None)
     return df
@@ -78,6 +77,7 @@ def coerce_numeric(df: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
 # =======================
 def load_prices_from_api(params: Dict) -> pd.DataFrame:
     data = safe_request_json(params["api_url"])
+    print('1. Ingestão da API e preparação de preços')
     df = pd.DataFrame(data)
 
     # Campos mínimos esperados
@@ -117,9 +117,9 @@ class RetornoEsperado:
     def calcular_retorno_esperado(self, max_window: int = None):
         """
         Constrói cenários de altas consecutivas:
-        - Para cada símbolo, para todas as janelas de tamanho n (2..N ou 2..max_window),
-          se todos os retornos da janela forem > 0, registra o retorno do próximo dia.
-        - Agrega colunas: simbolo, cenario ('+'*n), retorno_proximo, ganhos, perdas, binario, dia1..diaN.
+        - Para cada símbolo, para todas as janelas de tamanho n (2..N ou 2..max_window) [pode trocar para 1..N se quiser].
+        - Se todos os retornos da janela forem > 0, registra o retorno do próximo dia.
+        - Saída: simbolo, cenario ('+'*n), retorno_proximo, ganhos, perdas, is_ganho_futuro, dia1..diaN.
         """
         if self.df.empty:
             print("DataFrame de preços vazio.")
@@ -131,7 +131,6 @@ class RetornoEsperado:
         if missing:
             raise ValueError(f"df faltando colunas necessárias: {missing}")
 
-        # Garantir ordenação e retornos diários
         dfp = self.df.copy()
         dfp = dfp.sort_values(["simbolo", "datahora_fechamento"])
         dfp["ret"] = dfp.groupby("simbolo")["ultimo_preco"].pct_change()
@@ -148,21 +147,19 @@ class RetornoEsperado:
             N = len(grupo)
             upper = N if max_window is None else min(max_window, N)
 
-            # Para cada janela
-            for n in range(2, upper):
-                # índice i finaliza em i+n, então até N-n-1
+            # Para cada janela histórica
+            for n in range(2, upper):  # relaxe para range(1, upper) se quiser incluir n=1
                 for i in range(0, len(grupo) - n):
                     janela = grupo.iloc[i:i+n]
                     if not (janela["ret"] > 0).all():
                         continue
-                    # Próximo dia
                     if i + n >= len(grupo):
                         continue
                     proximo = grupo.iloc[i + n]
                     retorno = proximo["ret"]
                     ganhos = retorno if pd.notna(retorno) and retorno > 0 else np.nan
                     perdas = retorno if pd.notna(retorno) and retorno < 0 else np.nan
-                    binario = 1 if pd.notna(retorno) and retorno > 0 else 0
+                    is_ganho_futuro = 1 if pd.notna(retorno) and retorno > 0 else 0
 
                     linha = {
                         "simbolo": simbolo,
@@ -170,9 +167,8 @@ class RetornoEsperado:
                         "retorno_proximo": retorno,
                         "ganhos": ganhos,
                         "perdas": perdas,
-                        "binario": binario
+                        "is_ganho_futuro": is_ganho_futuro
                     }
-                    # Adicionar variáveis da janela
                     for j in range(n):
                         linha[f"dia{j+1}"] = janela.iloc[j]["ret"]
 
@@ -180,16 +176,15 @@ class RetornoEsperado:
 
         if not todos_cenarios:
             print("Nenhum cenário encontrado no histórico.")
-            self.resultados = pd.DataFrame(columns=["simbolo","cenario","retorno_proximo","ganhos","perdas","binario"])
+            self.resultados = pd.DataFrame(columns=["simbolo","cenario","retorno_proximo","ganhos","perdas","is_ganho_futuro"])
             return
 
         df_cenario = pd.DataFrame(todos_cenarios)
 
-        # Calcular média dos binários por ativo (media_binario), se for útil
-        medias_binarios = df_cenario.groupby("simbolo")["binario"].mean().reset_index()
-        medias_binarios.rename(columns={"binario": "media_binario"}, inplace=True)
+        medias_is_ganho_futuro = df_cenario.groupby("simbolo")["is_ganho_futuro"].mean().reset_index()
+        medias_is_ganho_futuro.rename(columns={"is_ganho_futuro": "media_is_ganho_futuro"}, inplace=True)
 
-        df_final = pd.merge(df_cenario, medias_binarios, on="simbolo", how="left")
+        df_final = pd.merge(df_cenario, medias_is_ganho_futuro, on="simbolo", how="left")
         self.resultados = df_final
 
     def salvar_excel_unico(self, path_excel: str):
@@ -203,57 +198,69 @@ class RetornoEsperado:
 # =======================
 # 3) Agregação de sinais por (simbolo, cenario)
 # =======================
-def prepare_signal_table(resultados: pd.DataFrame, params: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, List[str]]:
+def prepare_signal_table(resultados: pd.DataFrame, params: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, List[str], Dict[str,int]]:
     logs = []
+    diag = {"apos_suporte": 0, "apos_p": 0, "apos_ganho": 0, "apos_b": 0}
 
-    req_cols = {"simbolo", "cenario", "retorno_proximo", "ganhos", "perdas", "binario"}
+    req_cols = {"simbolo", "cenario", "retorno_proximo", "ganhos", "perdas", "is_ganho_futuro"}
     missing = req_cols - set(resultados.columns)
     if missing:
         raise ValueError(f"resultados faltando colunas: {missing}")
 
     r = resultados.copy()
-    for c in ["retorno_proximo", "ganhos", "perdas", "binario"]:
+    for c in ["retorno_proximo", "ganhos", "perdas", "is_ganho_futuro"]:
         r[c] = pd.to_numeric(r[c], errors="coerce")
 
     agg = r.groupby(["simbolo", "cenario"]).agg(
-        p=("binario", "mean"),
+        p=("is_ganho_futuro", "mean"),
         ganho_medio=("ganhos", "mean"),
         perda_media=("perdas", "mean"),
-        suporte=("binario", "count"),
+        suporte=("is_ganho_futuro", "count"),
         Er=("retorno_proximo", "mean")
     ).reset_index()
 
-    # b válido apenas se perda_media for negativa
-    agg["b"] = np.where(
-        (~agg["ganho_medio"].isna()) & (~agg["perda_media"].isna()) & (agg["perda_media"] < 0),
-        agg["ganho_medio"] / agg["perda_media"].abs(),
-        np.nan
-    )
+    # suporte_min deve ser inteiro >=1
+    sup_min = int(max(1, round(params.get("suporte_min", 1))))
 
-    filtro = (
-        (agg["suporte"] >= params["suporte_min"]) &
-        (agg["p"] > 0.5) &
-        (agg["ganho_medio"] > 0) &
-        (~agg["b"].isna()) &
-        (agg["b"] > 0)
-    )
-    agg_f = agg[filtro].copy()
+    # b com epsilon para evitar NaN/0
+    eps = 1e-6
+    perda_abs = agg["perda_media"].abs()
+    perda_safe = np.where((~agg["perda_media"].isna()) & (perda_abs > 0), perda_abs, eps)
+    agg["b"] = np.where(~agg["ganho_medio"].isna(), agg["ganho_medio"] / perda_safe, np.nan)
+
+    # Filtros relaxados
+    filtro_suporte = (agg["suporte"] >= sup_min)
+    filtro_ganho = (agg["ganho_medio"] > 0)  # se quiser ainda mais relaxado, troque para >= 0
+    # Filtro p removido (antes p>0.5). Se quiser semi-relaxado, use (agg["p"] >= 0.45)
+    filtro_b = (~agg["b"].isna()) & (agg["b"] >= 0)
+
+    # Aplicar filtro em etapas para diagnóstico
+    agg_s = agg[filtro_suporte].copy()
+    diag["apos_suporte"] = agg_s.shape[0]
+
+    agg_pg = agg_s[filtro_ganho.loc[agg_s.index]].copy()
+    diag["apos_ganho"] = agg_pg.shape
+
+    agg_pgb = agg_pg[filtro_b.loc[agg_pg.index]].copy()
+    diag["apos_b"] = agg_pgb.shape
+
+    agg_f = agg_pgb
 
     # Logs de descartes por agregação
-    discarded = agg[~filtro]
+    discarded = agg[~(filtro_suporte & filtro_ganho & filtro_b)]
     for _, row in discarded.iterrows():
         motivo = []
-        if row["suporte"] < params["suporte_min"]:
-            motivo.append(f"suporte<{params['suporte_min']}")
-        if row["p"] <= 0.5:
-            motivo.append("p<=0.5")
+        if row["suporte"] < sup_min:
+            motivo.append(f"suporte<{sup_min}")
+        # if row["p"] <= 0.5:  # filtro p foi removido; manter comentário como referência
+        #     motivo.append("p<=0.5")
         if pd.isna(row["ganho_medio"]) or row["ganho_medio"] <= 0:
             motivo.append("ganho_medio<=0/NA")
-        if pd.isna(row["b"]) or row["b"] <= 0:
-            motivo.append("b<=0/NA")
+        if pd.isna(row["b"]) or row["b"] < 0:
+            motivo.append("b<0/NA")
         logs.append(f"{row['simbolo']}|{row['cenario']}: descartado na agregação ({', '.join(motivo)})")
 
-    return agg_f, agg, logs
+    return agg_f, agg, logs, diag
 
 # =======================
 # 4) Detecção do cenário atual por símbolo
@@ -286,8 +293,10 @@ def detect_current_scenario(dfp: pd.DataFrame) -> pd.DataFrame:
 # =======================
 # 5) Score, seleção, sizing e risco
 # =======================
-def cross_section_scores(scen_df: pd.DataFrame, agg_f: pd.DataFrame, slippage_bps: int) -> Tuple[pd.DataFrame, List[str]]:
+def cross_section_scores(scen_df: pd.DataFrame, agg_f: pd.DataFrame, slippage_bps: int) -> Tuple[pd.DataFrame, List[str], Dict[str,int]]:
     logs = []
+    diag = {"com_cenario_atual": 0, "com_parametros": 0, "com_Ernet_pos": 0}
+
     joined = scen_df.merge(
         agg_f,
         left_on=["simbolo", "cenario_atual"],
@@ -295,6 +304,9 @@ def cross_section_scores(scen_df: pd.DataFrame, agg_f: pd.DataFrame, slippage_bp
         how="left",
         suffixes=("", "_agg")
     )
+
+    # Diagnóstico: quantos têm cenário atual
+    diag["com_cenario_atual"] = int(joined["cenario_atual"].notna().sum())
 
     roundtrip_cost = 2 * (slippage_bps / 10000)  # entra+saí
     joined["Er_net"] = joined["Er"] - roundtrip_cost
@@ -305,20 +317,25 @@ def cross_section_scores(scen_df: pd.DataFrame, agg_f: pd.DataFrame, slippage_bp
         sym = row["simbolo"]
         if pd.isna(row["cenario_atual"]):
             logs.append(f"{sym}: descartado (sem cenário atual).")
-        elif pd.isna(row["p"]) or pd.isna(row["Er"]) or pd.isna(row["b"]):
+        elif pd.isna(row.get("p")) or pd.isna(row.get("Er")) or pd.isna(row.get("b")):
             logs.append(f"{sym}: descartado (par sem parâmetros suficientes).")
-        elif row["Er_net"] <= 0:
+        elif row.get("Er_net") is not None and row["Er_net"] <= 0:
             logs.append(f"{sym}: descartado (Er_net<=0).")
+
+    cond_param = (~joined["p"].isna()) & (~joined["b"].isna()) & (~joined["Er_net"].isna())
+    diag["com_parametros"] = int(cond_param.sum())
+
+    # Se quiser ainda mais relaxado, troque >0 por >= -0.0005
+    cond_pos = cond_param & (joined["Er_net"] > 0)
+    # cond_pos = cond_param & (joined["Er_net"] >= -0.0005)  # relaxação opcional
+    diag["com_Ernet_pos"] = int(cond_pos.sum())
 
     sel = joined[
         (~joined["cenario_atual"].isna()) &
-        (~joined["p"].isna()) &
-        (~joined["b"].isna()) &
-        (~joined["Er_net"].isna()) &
-        (joined["Er_net"] > 0)
+        cond_pos
     ].copy()
 
-    return sel, logs
+    return sel, logs, diag
 
 def select_top_k(sel: pd.DataFrame, k: int) -> pd.DataFrame:
     sel = sel.sort_values("score", ascending=False).copy()
@@ -411,16 +428,18 @@ def build_portfolio_target(
     dfp = compute_daily_returns(df_prices)
 
     # Agregação de sinais
-    agg_f, agg_raw, logs_agg = prepare_signal_table(resultados, params)
+    agg_f, agg_raw, logs_agg, diag_agg = prepare_signal_table(resultados, params)
     logs.extend(logs_agg)
+    logs.append(f"[Diag] Após suporte: {diag_agg['apos_suporte']} pares; Após ganho_medio: {diag_agg['apos_ganho']} pares; Após b: {diag_agg['apos_b']} pares.")
 
     # Cenário atual
     scen_df = detect_current_scenario(dfp)
     data_ref = scen_df["data_ref"].max()
 
     # Scores e custos
-    sel_full, logs_sel = cross_section_scores(scen_df, agg_f, params["slippage_bps"])
+    sel_full, logs_sel, diag_scores = cross_section_scores(scen_df, agg_f, params["slippage_bps"])
     logs.extend(logs_sel)
+    logs.append(f"[Diag] Com cenário atual: {diag_scores['com_cenario_atual']} símbolos; Com parâmetros: {diag_scores['com_parametros']} símbolos; Com Er_net>0: {diag_scores['com_Ernet_pos']} símbolos.")
 
     # Seleção top-k
     topk = select_top_k(sel_full, params["k"])
@@ -476,7 +495,7 @@ def build_portfolio_target(
     carteira_alvo["peso"] = carteira_alvo["peso"].astype(float)
 
     num_sinais = int(sel_full.shape[0])
-    num_sel = int(carteira_alvo.shape)
+    num_sel = int(carteira_alvo.shape[0])
     logs.append(f"Ativos com sinal: {num_sinais}. Selecionados (top-k): {num_sel}.")
     logs.append(f"Parâmetros: k={params['k']}, suporte_min={params['suporte_min']}, cap_ativo={params['cap_ativo']}, vol_alvo={params['vol_alvo']}, dd_cut={params['dd_cut']}, kelly_frac={params['kelly_frac']}, slippage_bps={params['slippage_bps']}.")
 
@@ -533,7 +552,6 @@ def print_summary(carteira: pd.DataFrame, meta: Dict, logs: List[str], top_show:
 
     # Logs resumidos
     print("\n===== Logs =====")
-    # Limitar para evitar excesso
     uniq = sorted(set(logs))
     for line in uniq[:200]:
         print(line)
@@ -566,9 +584,7 @@ def main(params: Dict = PARAMS):
     # 6) Imprimir resumo
     print_summary(carteira_alvo, meta, logs, top_show=params["k"])
 
-    # 7) Observação sobre curva patrimonial
-    # Para o controle de DD funcionar plenamente ao longo do tempo, alimente "data/equity_curve.csv"
-    # diariamente com o patrimônio realizado após executar a carteira. Exemplo de update externo:
+    # 7) Observação sobre curva patrimonial (atualize externamente com o patrimônio diário realizado):
     # eq = load_or_init_equity_curve(params["file_equity_curve"], params["initial_equity"])
     # eq = pd.concat([eq, pd.DataFrame({"date":[pd.Timestamp(meta["data"])], "equity":[novo_patrimonio]})])
     # eq = eq.drop_duplicates(subset=["date"]).sort_values("date")
