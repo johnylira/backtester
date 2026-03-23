@@ -96,13 +96,26 @@ function parse_investing_csv_text(filename::AbstractString, content::AbstractStr
 end
 
 function build_long_from_investing_payload(payload)
-    files = payload["files"]
+    folder = String(payload["folder"])
     benchmark_asset = String(payload["benchmark_asset"])
 
+    if !isdir(folder)
+        error("Pasta não encontrada: $(folder)")
+    end
+
+    csv_paths = sort(filter(path ->
+        isfile(path) && endswith(lowercase(path), ".csv"),
+        readdir(folder; join=true)
+    ))
+
+    if isempty(csv_paths)
+        error("Nenhum arquivo CSV encontrado na pasta: $(folder)")
+    end
+
     parts = DataFrame[]
-    for f in files
-        filename = String(f["filename"])
-        content = String(f["content"])
+    for path in csv_paths
+        filename = basename(path)
+        content = read(path, String)
         push!(parts, parse_investing_csv_text(filename, content))
     end
 
@@ -119,7 +132,8 @@ function build_long_from_investing_payload(payload)
 
     panel = leftjoin(all_df, bench, on=:datetime)
 
-    if any(ismissing.(panel.bench_open)) || any(ismissing.(panel.bench_high)) || any(ismissing.(panel.bench_low)) || any(ismissing.(panel.bench_close))
+    if any(ismissing.(panel.bench_open)) || any(ismissing.(panel.bench_high)) ||
+       any(ismissing.(panel.bench_low)) || any(ismissing.(panel.bench_close))
         error("Benchmark asset $(benchmark_asset) não cobre todas as datas necessárias.")
     end
 
@@ -625,16 +639,18 @@ end
 @swagger """
 /v1/backtest/investing-csv:
   post:
-    summary: Backtest multiativo a partir de CSVs no formato Investing
+    summary: Backtest multiativo a partir de CSVs em uma pasta
     description: |
-      Recebe uma lista de arquivos CSV em texto bruto. O ativo é inferido do nome do arquivo,
-      por exemplo: "PETR4 - Historico.csv". Um dos ativos deve ser indicado como benchmark.
+      Lê automaticamente todos os arquivos CSV da pasta informada.
+      O ativo é inferido do nome do arquivo, por exemplo: "PETR4 - Historico.csv".
+      Um dos ativos deve ser indicado como benchmark.
     requestBody:
       required: true
       content:
         application/json:
           example:
-            benchmark_asset: "IBOV"
+            folder: "investing"
+            benchmark_asset: "DIVO11"
             params:
               test_fraction: 0.2
               train_window_days: 252
@@ -647,31 +663,6 @@ end
               max_depth: 4
               subsample: 0.9
               colsample_bytree: 0.9
-            files:
-              - filename: "PETR4 - Historico.csv"
-                content: |
-                  "Data","Último","Abertura","Máxima","Mínima","Vol.","Var%"
-                  "03.10.2025","106,28","106,47","106,48","105,85","23,62K","0,10%"
-                  "02.10.2025","106,17","107,10","107,56","105,72","55,59K","-0,61%"
-                  "01.10.2025","106,82","107,99","108,48","106,62","31,85K","-0,62%"
-                  "30.09.2025","107,49","107,51","108,17","107,00","80,15K","0,43%"
-                  "29.09.2025","107,03","108,00","108,00","107,03","28,57K","0,25%"
-              - filename: "VALE3 - Historico.csv"
-                content: |
-                  "Data","Último","Abertura","Máxima","Mínima","Vol.","Var%"
-                  "03.10.2025","62,11","62,00","62,35","61,80","18,20M","0,40%"
-                  "02.10.2025","61,86","62,40","62,70","61,55","21,05M","-0,77%"
-                  "01.10.2025","62,34","63,10","63,20","62,10","17,44M","-0,52%"
-                  "30.09.2025","62,67","62,80","63,01","62,22","19,80M","0,18%"
-                  "29.09.2025","62,56","62,20","62,70","61,95","15,33M","0,61%"
-              - filename: "IBOV - Historico.csv"
-                content: |
-                  "Data","Último","Abertura","Máxima","Mínima","Vol.","Var%"
-                  "03.10.2025","135.120,32","134.900,00","135.300,00","134.500,00","1,25B","0,30%"
-                  "02.10.2025","134.716,10","135.400,00","135.800,00","134.200,00","1,18B","-0,41%"
-                  "01.10.2025","135.270,80","136.000,00","136.220,00","135.010,00","1,05B","-0,25%"
-                  "30.09.2025","135.609,90","135.100,00","135.900,00","134.980,00","1,11B","0,44%"
-                  "29.09.2025","135.016,00","134.700,00","135.200,00","134.410,00","980,00M","0,20%"
     responses:
       '200':
         description: Resultado do backtest e ranking do próximo dia
