@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  xgboost:
+    build: .
+    container_name: xgboost
+    ports:
+      - "8080:8080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+    restart: unless-stopped
