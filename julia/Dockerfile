@@ -1,20 +1,23 @@
-FROM julia:1.12.5
+FROM julia:1.12.5 AS base
 
 WORKDIR /app
 
-# Otimização: Instalação de dependências de sistema para o XGBoost (se necessário no Alpine)
-# RUN apk add --no-cache libstdc++ gcompat
-
-RUN julia -e 'using Pkg; Pkg.add(["Oxygen","HTTP","JSON3","DataFrames","XGBoost","CSV","SwaggerMarkdown"]); Pkg.precompile()'
-
-COPY app.jl /app/app.jl
-
+ENV JULIA_PROJECT=/app
+ENV JULIA_NUM_THREADS=auto
 ENV HOST=0.0.0.0
 ENV PORT=8080
-# Opção A: Definir via variável de ambiente (afeta todo o runtime)
-# ENV JULIA_NUM_THREADS=auto
 
+COPY Project.toml Manifest.toml* bootstrap.jl /app/
+COPY src /app/src
+RUN julia --project=/app /app/bootstrap.jl
+
+FROM base AS dev
+COPY dev.jl prod.jl /app/
 EXPOSE 8080
+CMD ["julia", "--project=/app", "--threads=auto", "/app/dev.jl"]
 
-# Opção B: Passar explicitamente no CMD (mais prioritário que a ENV)
-CMD ["julia", "--project=@", "--threads=auto", "/app/app.jl"]
+# FROM base AS prod
+# COPY prod.jl /app/
+# COPY src /app/src
+# EXPOSE 8080
+# CMD ["julia", "--project=/app", "--threads=auto", "/app/prod.jl"]

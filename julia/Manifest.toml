@@ -1,0 +1,10 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.12.5"
+manifest_format = "2.0"
+project_hash = "29efbbc1a458eb347975e1d4f8a7ca9dfc1da9eb"
+
+[[deps.XGBoostRecencyAPI]]
+path = "."
+uuid = "6f9f0b9c-7c4a-4cb8-98fc-4f0fcf6f81d3"
+version = "0.1.0"

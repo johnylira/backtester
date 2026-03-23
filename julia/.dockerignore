@@ -1,0 +1,11 @@
+.git
+.gitignore
+.julia
+investing
+tmp
+logs
+*.csv
+*.log
+__pycache__
+.vscode
+.idea

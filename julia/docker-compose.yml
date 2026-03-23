@@ -1,14 +1,44 @@
 version: "3.9"
+# Example:
+# docker compose build xgboost-dev
+# docker compose up --watch xgboost-dev
 
 services:
-  xgboost:
-    build: .
-    volumes:
-      - ./:/app/
-    container_name: xgboost
+  xgboost-dev:
+    build:
+      context: .
+      target: dev
+    container_name: xgboost-dev
     ports:
       - "8080:8080"
     environment:
       HOST: 0.0.0.0
       PORT: 8080
+      JULIA_PROJECT: /app
+      JULIA_NUM_THREADS: auto
+    volumes:
+      - ./:/app
     restart: unless-stopped
+
+
+  # xgboost-prod:
+  #   build:
+  #     context: .
+  #     target: prod
+  #   container_name: xgboost-prod
+  #   profiles: ["prod"]
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     HOST: 0.0.0.0
+  #     PORT: 8080
+  #     JULIA_PROJECT: /app
+  #     JULIA_NUM_THREADS: auto
+  #   volumes:
+  #     - julia_depot:/root/.julia
+  #     - ./investing:/app/investing:ro
+  #   restart: unless-stopped
+  #   command: ["julia", "--project=/app", "--threads=auto", "/app/prod.jl"]
+
+volumes:
+  julia_depot:
