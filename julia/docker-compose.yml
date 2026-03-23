@@ -3,6 +3,8 @@ version: "3.9"
 services:
   xgboost:
     build: .
+    volumes:
+      - ./:/app/
     container_name: xgboost
     ports:
       - "8080:8080"

@@ -5,6 +5,8 @@ using DataFrames
 using Dates
 using Statistics
 using XGBoost
+using CSV
+using SwaggerMarkdown
 
 const DEFAULTS = Dict(
     "test_fraction" => 0.2,
@@ -21,6 +23,162 @@ const DEFAULTS = Dict(
 )
 
 @info "Servidor iniciado" Threads.nthreads()
+
+function parse_ptbr_number(s::AbstractString)
+    t = strip(String(s))
+    t = replace(t, "." => "")
+    t = replace(t, "," => ".")
+    return parse(Float64, t)
+end
+
+function parse_ptbr_percent(s::AbstractString)
+    t = strip(String(s))
+    t = replace(t, "%" => "")
+    return parse_ptbr_number(t) / 100.0
+end
+
+function parse_ptbr_volume(s::AbstractString)
+    t = strip(String(s))
+    mult = 1.0
+    if endswith(t, "K")
+        mult = 1_000.0
+        t = chop(t)
+    elseif endswith(t, "M")
+        mult = 1_000_000.0
+        t = chop(t)
+    elseif endswith(t, "B")
+        mult = 1_000_000_000.0
+        t = chop(t)
+    end
+    return parse_ptbr_number(t) * mult
+end
+
+function asset_from_filename(filename::AbstractString)
+    base = split(strip(filename), " - ")[1]
+    return strip(base)
+end
+
+function parse_investing_csv_text(filename::AbstractString, content::AbstractString)
+    asset = asset_from_filename(filename)
+
+    io = IOBuffer(content)
+    raw = CSV.read(
+        io,
+        DataFrame;
+        delim = ',',
+        quotechar = '"',
+        ignorerepeated = false,
+        normalizenames = false,
+        stringtype = String
+    )
+
+    rename!(raw, Dict(
+        "Data" => :date_str,
+        "Último" => :last_str,
+        "Abertura" => :open_str,
+        "Máxima" => :high_str,
+        "Mínima" => :low_str,
+        "Vol." => :vol_str,
+        "Var%" => :var_str
+    ))
+
+    raw[!, :datetime] = DateTime.(Date.(raw.date_str, dateformat"d.m.y"))
+    raw[!, :asset] = fill(asset, nrow(raw))
+    raw[!, :asset_open] = parse_ptbr_number.(raw.open_str)
+    raw[!, :asset_high] = parse_ptbr_number.(raw.high_str)
+    raw[!, :asset_low] = parse_ptbr_number.(raw.low_str)
+    raw[!, :asset_close] = parse_ptbr_number.(raw.last_str)
+    raw[!, :asset_volume] = parse_ptbr_volume.(raw.vol_str)
+    raw[!, :asset_var_pct] = parse_ptbr_percent.(raw.var_str)
+
+    sort!(raw, :datetime)
+    return select(raw, :datetime, :asset, :asset_open, :asset_high, :asset_low, :asset_close, :asset_volume, :asset_var_pct)
+end
+
+function build_long_from_investing_payload(payload)
+    files = payload["files"]
+    benchmark_asset = String(payload["benchmark_asset"])
+
+    parts = DataFrame[]
+    for f in files
+        filename = String(f["filename"])
+        content = String(f["content"])
+        push!(parts, parse_investing_csv_text(filename, content))
+    end
+
+    all_df = vcat(parts...)
+    sort!(all_df, [:asset, :datetime])
+
+    bench = all_df[all_df.asset .== benchmark_asset, [:datetime, :asset_open, :asset_high, :asset_low, :asset_close]]
+    rename!(bench, Dict(
+        :asset_open => :bench_open,
+        :asset_high => :bench_high,
+        :asset_low => :bench_low,
+        :asset_close => :bench_close
+    ))
+
+    panel = leftjoin(all_df, bench, on=:datetime)
+
+    if any(ismissing.(panel.bench_open)) || any(ismissing.(panel.bench_high)) || any(ismissing.(panel.bench_low)) || any(ismissing.(panel.bench_close))
+        error("Benchmark asset $(benchmark_asset) não cobre todas as datas necessárias.")
+    end
+
+    return select(panel,
+        :datetime,
+        :asset,
+        :asset_open,
+        :asset_high,
+        :asset_low,
+        :asset_close,
+        :bench_open,
+        :bench_high,
+        :bench_low,
+        :bench_close
+    )
+end
+
+function run_pipeline_from_investing_csv(payload)
+    params = haskey(payload, "params") ? payload["params"] : Dict{String, Any}()
+    df = build_long_from_investing_payload(payload)
+    panel = make_features(df)
+
+    feature_cols = [
+        :asset_id,
+        :ret1,
+        :mom3,
+        :mom5,
+        :mom10,
+        :vol5,
+        :vol10,
+        :range1,
+        :body1,
+        :close_to_sma5,
+        :close_to_sma10,
+        :bench_ret1,
+        :bench_mom3,
+        :bench_mom5,
+        :bench_range1,
+        :bench_body1,
+        :rel_ret1,
+        :rel_mom5,
+        :mom5_rank,
+        :vol10_rank,
+        :relret1_rank
+    ]
+
+    bt = forward_backtest(panel, feature_cols, params)
+    rank = next_day_ranking(panel, feature_cols, params)
+
+    return Dict(
+        "status" => "ok",
+        "input_rows" => nrow(df),
+        "assets" => sort(unique(df.asset)),
+        "benchmark_asset" => String(payload["benchmark_asset"]),
+        "feature_columns" => string.(feature_cols),
+        "backtest" => bt,
+        "next_day_ranking" => rank
+    )
+end
 
 safe_float(x) = x === nothing ? NaN : Float64(x)
 
@@ -464,7 +622,89 @@ end
     end
 end
 
+@swagger """
+/v1/backtest/investing-csv:
+  post:
+    summary: Backtest multiativo a partir de CSVs no formato Investing
+    description: |
+      Recebe uma lista de arquivos CSV em texto bruto. O ativo é inferido do nome do arquivo,
+      por exemplo: "PETR4 - Historico.csv". Um dos ativos deve ser indicado como benchmark.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          example:
+            benchmark_asset: "IBOV"
+            params:
+              test_fraction: 0.2
+              train_window_days: 252
+              min_train_days: 126
+              recency_half_life_days: 63.0
+              top_k: 3
+              long_only_positive: true
+              num_round: 150
+              eta: 0.05
+              max_depth: 4
+              subsample: 0.9
+              colsample_bytree: 0.9
+            files:
+              - filename: "PETR4 - Historico.csv"
+                content: |
+                  "Data","Último","Abertura","Máxima","Mínima","Vol.","Var%"
+                  "03.10.2025","106,28","106,47","106,48","105,85","23,62K","0,10%"
+                  "02.10.2025","106,17","107,10","107,56","105,72","55,59K","-0,61%"
+                  "01.10.2025","106,82","107,99","108,48","106,62","31,85K","-0,62%"
+                  "30.09.2025","107,49","107,51","108,17","107,00","80,15K","0,43%"
+                  "29.09.2025","107,03","108,00","108,00","107,03","28,57K","0,25%"
+              - filename: "VALE3 - Historico.csv"
+                content: |
+                  "Data","Último","Abertura","Máxima","Mínima","Vol.","Var%"
+                  "03.10.2025","62,11","62,00","62,35","61,80","18,20M","0,40%"
+                  "02.10.2025","61,86","62,40","62,70","61,55","21,05M","-0,77%"
+                  "01.10.2025","62,34","63,10","63,20","62,10","17,44M","-0,52%"
+                  "30.09.2025","62,67","62,80","63,01","62,22","19,80M","0,18%"
+                  "29.09.2025","62,56","62,20","62,70","61,95","15,33M","0,61%"
+              - filename: "IBOV - Historico.csv"
+                content: |
+                  "Data","Último","Abertura","Máxima","Mínima","Vol.","Var%"
+                  "03.10.2025","135.120,32","134.900,00","135.300,00","134.500,00","1,25B","0,30%"
+                  "02.10.2025","134.716,10","135.400,00","135.800,00","134.200,00","1,18B","-0,41%"
+                  "01.10.2025","135.270,80","136.000,00","136.220,00","135.010,00","1,05B","-0,25%"
+                  "30.09.2025","135.609,90","135.100,00","135.900,00","134.980,00","1,11B","0,44%"
+                  "29.09.2025","135.016,00","134.700,00","135.200,00","134.410,00","980,00M","0,20%"
+    responses:
+      '200':
+        description: Resultado do backtest e ranking do próximo dia
+"""
+@post "/v1/backtest/investing-csv" function(req::HTTP.Request)
+    try
+        payload = JSON3.read(String(req.body))
+        result = run_pipeline_from_investing_csv(payload)
+        return result
+    catch e
+        return HTTP.Response(
+            400,
+            ["Content-Type" => "application/json"],
+            body = JSON3.write(Dict(
+                "status" => "error",
+                "message" => sprint(showerror, e)
+            ))
+        )
+    end
+end
+
+
+info = Dict(
+    "title" => "XGBoost Recency API",
+    "version" => "1.1.0"
+)
+
+openApi = OpenAPI("3.0.0", info)
+swagger_document = build(openApi)
+mergeschema(swagger_document)
+
 host = get(ENV, "HOST", "0.0.0.0")
 port = parse(Int, get(ENV, "PORT", "8080"))
 
 serve(host=host, port=port)
+

@@ -5,7 +5,7 @@ WORKDIR /app
 # Otimização: Instalação de dependências de sistema para o XGBoost (se necessário no Alpine)
 # RUN apk add --no-cache libstdc++ gcompat
 
-RUN julia -e 'using Pkg; Pkg.add(["Oxygen","HTTP","JSON3","DataFrames","XGBoost"]); Pkg.precompile()'
+RUN julia -e 'using Pkg; Pkg.add(["Oxygen","HTTP","JSON3","DataFrames","XGBoost","CSV","SwaggerMarkdown"]); Pkg.precompile()'
 
 COPY app.jl /app/app.jl
 
