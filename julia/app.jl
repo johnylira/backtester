@@ -24,21 +24,46 @@ const DEFAULTS = Dict(
 
 @info "Servidor iniciado" Threads.nthreads()
 
-function parse_ptbr_number(s::AbstractString)
+function parse_ptbr_number(s)
+    if s === missing || s === nothing
+        return NaN
+    end
+
     t = strip(String(s))
+    if isempty(t) || t == "-"
+        return NaN
+    end
+
     t = replace(t, "." => "")
     t = replace(t, "," => ".")
-    return parse(Float64, t)
+    x = tryparse(Float64, t)
+    return x === nothing ? NaN : x
 end
 
-function parse_ptbr_percent(s::AbstractString)
+function parse_ptbr_percent(s)
+    if s === missing || s === nothing
+        return NaN
+    end
+
     t = strip(String(s))
+    if isempty(t) || t == "-"
+        return NaN
+    end
+
     t = replace(t, "%" => "")
     return parse_ptbr_number(t) / 100.0
 end
 
-function parse_ptbr_volume(s::AbstractString)
+function parse_ptbr_volume(s)
+    if s === missing || s === nothing
+        return NaN
+    end
+
     t = strip(String(s))
+    if isempty(t) || t == "-"
+        return NaN
+    end
+
     mult = 1.0
     if endswith(t, "K")
         mult = 1_000.0
@@ -50,7 +75,9 @@ function parse_ptbr_volume(s::AbstractString)
         mult = 1_000_000_000.0
         t = chop(t)
     end
-    return parse_ptbr_number(t) * mult
+
+    v = parse_ptbr_number(t)
+    return isnan(v) ? NaN : v * mult
 end
 
 function asset_from_filename(filename::AbstractString)
@@ -69,7 +96,8 @@ function parse_investing_csv_text(filename::AbstractString, content::AbstractStr
         quotechar = '"',
         ignorerepeated = false,
         normalizenames = false,
-        stringtype = String
+        stringtype = String,
+        missingstring = ""
     )
 
     rename!(raw, Dict(
@@ -81,6 +109,21 @@ function parse_investing_csv_text(filename::AbstractString, content::AbstractStr
         "Vol." => :vol_str,
         "Var%" => :var_str
     ))
+
+    for c in [:last_str, :open_str, :high_str, :low_str, :vol_str, :var_str]
+        if !hasproperty(raw, c)
+            error("Coluna $(c) não encontrada em $(filename). Colunas disponíveis: $(names(raw))")
+        end
+    end
+    
+    for (i, row) in enumerate(eachrow(raw))
+        for c in [:last_str, :open_str, :high_str, :low_str, :vol_str, :var_str]
+            v = row[c]
+            if v === missing || isempty(strip(String(v)))
+                @warn "Campo vazio" filename=filename row=i column=c date=row[:date_str]
+            end
+        end
+    end
 
     raw[!, :datetime] = DateTime.(Date.(raw.date_str, dateformat"d.m.y"))
     raw[!, :asset] = fill(asset, nrow(raw))
